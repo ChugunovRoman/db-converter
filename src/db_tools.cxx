@@ -15,10 +15,10 @@ void DBTools::unpack(const std::string& source_path, const std::string& destinat
 }
 
 
-void DBTools::pack(const std::string& source_path, const std::string& destination_path, const xray_re::DBVersion& version, const std::string& xdb_ud, const bool& dont_strip)
+void DBTools::pack(const std::string& source_path, const std::string& destination_path, const xray_re::DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders)
 {
 	Packer packer;
-	packer.process(source_path, destination_path, version, xdb_ud, dont_strip);
+	packer.process(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders);
 }
 
 

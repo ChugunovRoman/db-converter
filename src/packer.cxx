@@ -7,6 +7,9 @@
 #include "xray_re/xr_scrambler.hxx"
 #include "crc32/crc32.hxx"
 
+#include <boost/range/adaptors.hpp>
+#include <boost/range/adaptor/type_erased.hpp>
+#include <boost/range/iterator_range.hpp>
 #include <spdlog/spdlog.h>
 
 #include <filesystem>
@@ -20,7 +23,15 @@ Packer::~Packer()
 	delete_elements(m_files);
 }
 
-void Packer::process(const std::string& source_path, const std::string& destination_path, const DBVersion& version, const std::string& xdb_ud, const bool& dont_strip)
+template <typename... Args>
+	auto Packer::make_directory_range(bool recursive, Args... args) {
+		return recursive
+			? boost::make_iterator_range(std::filesystem::recursive_directory_iterator(args...), std::filesystem::recursive_directory_iterator()) | boost::adaptors::type_erased()
+			: boost::make_iterator_range(std::filesystem::directory_iterator(args...), std::filesystem::directory_iterator());
+}
+
+
+void Packer::process(const std::string& source_path, const std::string& destination_path, const DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders)
 {
 	if(source_path.empty())
 	{
@@ -88,7 +99,7 @@ void Packer::process(const std::string& source_path, const std::string& destinat
 	m_archive->open_chunk(DB_CHUNK_DATA);
 	m_root = source_path;
 	fs.append_path_separator(m_root);
-	process_folder(m_root, dont_strip);
+	process_folder(m_root, dont_strip, skip_folders);
 	m_archive->close_chunk();
 
 	auto w = new xr_memory_writer;
@@ -142,13 +153,14 @@ void Packer::process(const std::string& source_path, const std::string& destinat
 	fs.w_close(m_archive);
 }
 
-void Packer::process_folder(const std::string& path, const bool& dont_strip)
+void Packer::process_folder(const std::string& path, const bool& dont_strip, const bool& skip_folders)
 {
 	std::vector<std::filesystem::directory_entry> files, folders;
+	auto iter = make_directory_range(!skip_folders, path);
 
-	for(auto& entry : std::filesystem::recursive_directory_iterator(path))
+	for(auto& entry : iter)
 	{
-		if(entry.is_directory())
+		if(entry.is_directory() && !skip_folders)
 		{
 			folders.emplace_back(entry);
 		}
