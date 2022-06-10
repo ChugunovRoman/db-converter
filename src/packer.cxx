@@ -20,7 +20,7 @@ Packer::~Packer()
 	delete_elements(m_files);
 }
 
-void Packer::process(const std::string& source_path, const std::string& destination_path, const DBVersion& version, const std::string& xdb_ud)
+void Packer::process(const std::string& source_path, const std::string& destination_path, const DBVersion& version, const std::string& xdb_ud, const bool& dont_strip)
 {
 	if(source_path.empty())
 	{
@@ -88,7 +88,7 @@ void Packer::process(const std::string& source_path, const std::string& destinat
 	m_archive->open_chunk(DB_CHUNK_DATA);
 	m_root = source_path;
 	fs.append_path_separator(m_root);
-	process_folder(m_root);
+	process_folder(m_root, dont_strip);
 	m_archive->close_chunk();
 
 	auto w = new xr_memory_writer;
@@ -142,7 +142,7 @@ void Packer::process(const std::string& source_path, const std::string& destinat
 	fs.w_close(m_archive);
 }
 
-void Packer::process_folder(const std::string& path)
+void Packer::process_folder(const std::string& path, const bool& dont_strip)
 {
 	std::vector<std::filesystem::directory_entry> files, folders;
 
@@ -171,6 +171,10 @@ void Packer::process_folder(const std::string& path)
 	{
 		auto entry_path = std::filesystem::path(folder);
 		auto relative_path = std::filesystem::relative(entry_path, root_path);
+		if (dont_strip)
+		{
+			relative_path = entry_path;
+		}
 		m_folders.push_back(relative_path);
 	}
 
@@ -180,18 +184,27 @@ void Packer::process_folder(const std::string& path)
 	{
 		auto entry_path = std::filesystem::path(file);
 		auto relative_path = std::filesystem::relative(entry_path, root_path);
-		process_file(relative_path);
+		if (dont_strip)
+		{
+			relative_path = entry_path;
+		}
+		process_file(relative_path, dont_strip);
 	}
 }
 
-void Packer::process_file(const std::string& path)
+void Packer::process_file(const std::string& path, const bool& dont_strip)
 {
 	constexpr bool compress_files = false;
 
 	if constexpr(compress_files)
 	{
 		xr_file_system& fs = xr_file_system::instance();
-		auto reader = fs.r_open(m_root + path);
+		auto m_path = path;
+		if (!dont_strip)
+		{
+			m_path = m_root + path;
+		}
+		auto reader = fs.r_open(m_path);
 		if(reader)
 		{
 			auto data = static_cast<const uint8_t*>(reader->data());
@@ -222,7 +235,12 @@ void Packer::process_file(const std::string& path)
 	else
 	{
 		xr_file_system& fs = xr_file_system::instance();
-		auto reader = fs.r_open(m_root + path);
+		auto m_path = path;
+		if (!dont_strip)
+		{
+			m_path = m_root + path;
+		}
+		auto reader = fs.r_open(m_path);
 		if(reader)
 		{
 			auto offset = m_archive->tell();

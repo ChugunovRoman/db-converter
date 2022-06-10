@@ -16,11 +16,11 @@ class Packer
 public:
 	~Packer();
 
-	void process(const std::string& source_path, const std::string& destination_path, const xray_re::DBVersion& version, const std::string& xdb_ud);
+	void process(const std::string& source_path, const std::string& destination_path, const xray_re::DBVersion& version, const std::string& xdb_ud, const bool& dont_strip);
 
 private:
-	void process_folder(const std::string& path = "");
-	void process_file(const std::string& path);
+	void process_folder(const std::string& path = "", const bool& dont_strip = false);
+	void process_file(const std::string& path, const bool& dont_strip);
 	void add_folder(const std::string& path);
 
 	xray_re::xr_writer *m_archive;

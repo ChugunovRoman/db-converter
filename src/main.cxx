@@ -62,7 +62,8 @@ int main(int argc, char *argv[])
 		options_description pack_options("Pack options");
 		pack_options.add_options()
 		    ("pack", value<std::string>()->value_name("<DIR>"), "pack directory content into game archive")
-		    ("xdb_ud", value<std::string>()->value_name("<FILE>"), "attach user data file");
+		    ("xdb_ud", value<std::string>()->value_name("<FILE>"), "attach user data file")
+		    ("dont_strip", "if set then root path for each file will not stripped");
 
 		options_description all_options;
 		all_options.add(common_options).add(unpack_options).add(pack_options);
@@ -96,6 +97,13 @@ int main(int argc, char *argv[])
 		if(IsConflictingOptionsExist(vm, {"11xx", "2215", "2945", "2947ru", "2947ww", "xdb"}))
 		{
 			return 1;
+		}
+
+		auto dont_strip = false;
+
+		if(vm.count("dont_strip"))
+		{
+			dont_strip = true;
 		}
 
 		auto tools_type = ToolsType::AUTO;
@@ -216,7 +224,7 @@ int main(int argc, char *argv[])
 				xdb_ud = vm["xdb_ud"].as<std::string>();
 			}
 
-			DBTools::pack(source_path, destination_path, version, xdb_ud);
+			DBTools::pack(source_path, destination_path, version, xdb_ud, dont_strip);
 		}
 		else
 		{

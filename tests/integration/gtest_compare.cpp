@@ -50,6 +50,7 @@ void CompareChecksums(const std::string& file_path, xray_re::DBVersion version, 
 	std::string packed_file_path = temp_path + "packed/packed.db";
 	std::string userdata_file_path = unpack_path + "_userdata.ltx";
 	std::string filter = "";
+	bool dont_strip = false;
 
 	ASSERT_TRUE(fs::exists(file_path));
 
@@ -72,7 +73,7 @@ void CompareChecksums(const std::string& file_path, xray_re::DBVersion version, 
 		EXPECT_EQ(GetNumberOfFilesAndDirectories(unpack_path), number_of_files);
 	}
 	{
-		DBTools::pack(unpack_path, packed_file_path, version, userdata_file_path);
+		DBTools::pack(unpack_path, packed_file_path, version, userdata_file_path, dont_strip);
 
 		auto checksum = GetChecksum(packed_file_path);
 		ASSERT_TRUE(checksum.has_value());
