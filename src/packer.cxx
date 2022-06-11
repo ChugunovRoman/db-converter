@@ -234,6 +234,7 @@ void Packer::process_file(const std::string& path, const bool& dont_strip)
 
 			auto path_lowercase = path;
 			std::transform(path_lowercase.begin(), path_lowercase.end(), path_lowercase.begin(), [](unsigned char c) { return std::tolower(c); });
+			fs.trim_start_path_separator(path_lowercase);
 
 			auto file = new db_file;
 			file->path = path_lowercase;
@@ -263,6 +264,7 @@ void Packer::process_file(const std::string& path, const bool& dont_strip)
 
 			std::string path_lowercase = path;
 			std::transform(path_lowercase.begin(), path_lowercase.end(), path_lowercase.begin(), [](unsigned char c) { return std::tolower(c); });
+			fs.trim_start_path_separator(path_lowercase);
 
 			auto file = new db_file;
 			file->path = path_lowercase;

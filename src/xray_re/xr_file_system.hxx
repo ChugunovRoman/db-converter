@@ -60,6 +60,7 @@ namespace xray_re
 		bool resolve_path(const std::string& path, const std::string& name, std::string& full_path) const;
 		void update_path(const std::string& path, const std::string& root, const std::string& add);
 		static void append_path_separator(std::string& path);
+		static void trim_start_path_separator(std::string& path);
 		static SplitPath split_path(const std::string& path);
 		static std::string current_path();
 

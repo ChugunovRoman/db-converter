@@ -224,6 +224,21 @@ void xr_file_system::append_path_separator(std::string& path)
 	}
 }
 
+void xr_file_system::trim_start_path_separator(std::string& path)
+{
+	if(!path.empty() && path[0] == '.' && (path[1] == '/' || path[1] == '\\'))
+	{
+		path = path.erase(0 ,2);
+		return;
+	}
+
+	if(!path.empty() && (path[1] == '/' || path[1] == '\\'))
+	{
+		path = path.erase(0 ,1);
+		return;
+	}
+}
+
 SplitPath xr_file_system::split_path(const std::string& path)
 {
 	std::filesystem::path fs_path(path);
