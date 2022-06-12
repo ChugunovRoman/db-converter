@@ -102,21 +102,86 @@ void Packer::process(const std::string& source_path, const std::string& destinat
 	process_folder(m_root, dont_strip, skip_folders);
 	m_archive->close_chunk();
 
+	pack(version);
+}
+
+void Packer::processFiles(const std::vector<std::string>& files, const std::string& destination_path, const DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders)
+{
+	if(destination_path.empty())
+	{
+		spdlog::error("Missing destination file path");
+		return;
+	}
+
+	xr_file_system& fs = xr_file_system::instance();
+	auto path_splitted = fs.split_path(destination_path);
+
+	if(!xr_file_system::folder_exist(path_splitted.folder))
+	{
+		spdlog::info("Destination folder {} doesn't exist, creating", path_splitted.folder);
+		fs.create_path(path_splitted.folder);
+	}
+
+	if(version == DBVersion::DB_VERSION_AUTO)
+	{
+		spdlog::error("Unspecified DB format");
+		return;
+	}
+
+	if(version == DBVersion::DB_VERSION_1114 || version == DBVersion::DB_VERSION_2215 || version == DBVersion::DB_VERSION_2945)
+	{
+		spdlog::error("Unsupported DB format");
+		return;
+	}
+
+	fs.append_path_separator(m_root);
+
+	m_archive = fs.w_open(destination_path);
+	if(!m_archive)
+	{
+		spdlog::error("Failed to load {}", destination_path);
+		return;
+	}
+
+	if(version == DBVersion::DB_VERSION_XDB && !xdb_ud.empty())
+	{
+		if(auto reader = fs.r_open(xdb_ud))
+		{
+			m_archive->open_chunk(DB_CHUNK_USERDATA);
+			m_archive->w_raw(reader->data(), reader->size());
+			m_archive->close_chunk();
+			fs.r_close(reader);
+		}
+		else
+		{
+			spdlog::error("Failed to load {}", xdb_ud);
+		}
+	}
+
+	m_archive->open_chunk(DB_CHUNK_DATA);
+
+	for(const auto& file_path : files)
+	{
+		if(!xr_file_system::file_exist(file_path))
+		{
+			spdlog::error("Failed to find file {} Skipped", file_path);
+			continue;
+		}
+
+		process_file(file_path, dont_strip);
+	}
+
+	m_archive->close_chunk();
+
+	pack(version);
+}
+
+void Packer::pack(const DBVersion& version)
+{
+	spdlog::info("files: ");
+	xr_file_system& fs = xr_file_system::instance();
 	auto w = new xr_memory_writer;
 
-//	spdlog::info("folders: ");
-//	for(const auto& folder : m_folders)
-//	{
-//		w->w_size_u16(folder.size() + 16);
-//		w->w_u32(0);
-//		w->w_u32(0);
-//		w->w_u32(0);
-//		w->w_raw(folder.data(), folder.size());
-//		spdlog::info("  {}", folder);
-//		w->w_u32(0);
-//	}
-
-	spdlog::info("files: ");
 	for(const auto& file : m_files)
 	{
 		std::replace(file->path.begin(), file->path.end(), '/', '\\');

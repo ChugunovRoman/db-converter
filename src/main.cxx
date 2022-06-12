@@ -11,7 +11,8 @@ enum class ToolsType
 {
 	AUTO   = 0x00,
 	UNPACK = 0x01,
-	PACK   = 0x02
+	PACK   = 0x02,
+	FILES  = 0x03
 };
 
 bool IsConflictingOptionsExist(const variables_map& vm, const std::vector<std::string>& options)
@@ -41,6 +42,7 @@ int main(int argc, char *argv[])
 	try
 	{
 		unsigned int line_lenght = 82;
+		std::vector<std::string> file_list;
 		options_description common_options("Common options", line_lenght);
 		common_options.add_options()
 		    ("help", "produce help message")
@@ -61,6 +63,7 @@ int main(int argc, char *argv[])
 
 		options_description pack_options("Pack options");
 		pack_options.add_options()
+		    ("pack_files", value<std::vector<std::string>>(&file_list)->multitoken(), "list of files which will be packed into archive")
 		    ("pack", value<std::string>()->value_name("<DIR>"), "pack directory content into game archive")
 		    ("xdb_ud", value<std::string>()->value_name("<FILE>"), "attach user data file")
 		    ("dont_strip", "if set then root path for each file will not stripped")
@@ -87,6 +90,11 @@ int main(int argc, char *argv[])
 			all_options_string << all_options;
 			spdlog::info(all_options_string.str());
 
+			return 1;
+		}
+
+		if(IsConflictingOptionsExist(vm, {"pack", "pack_files"}))
+		{
 			return 1;
 		}
 
@@ -124,6 +132,11 @@ int main(int argc, char *argv[])
 		if(vm.count("pack"))
 		{
 			tools_type = ToolsType::PACK;
+		}
+
+		if(vm.count("pack_files"))
+		{
+			tools_type = ToolsType::FILES;
 		}
 
 		bool is_read_only = false;
@@ -233,6 +246,37 @@ int main(int argc, char *argv[])
 			}
 
 			DBTools::pack(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders);
+		}
+		else if(tools_type == ToolsType::FILES)
+		{
+			auto destination_path = vm.count("out") ? vm["out"].as<std::string>() : "";
+			auto path_splitted = xr_file_system::split_path(destination_path);
+			auto extension = path_splitted.extension;
+
+			if(version == DBVersion::DB_VERSION_AUTO)
+			{
+				if(!DBTools::is_known(extension))
+				{
+					spdlog::error("Unknown output file extension");
+					return 1;
+				}
+
+				version = extension_to_db_version(extension);
+			}
+
+			std::string filter;
+			if(vm.count("flt"))
+			{
+				filter = vm["flt"].as<std::string>();
+			}
+
+			std::string xdb_ud;
+			if(vm.count("xdb_ud"))
+			{
+				xdb_ud = vm["xdb_ud"].as<std::string>();
+			}
+
+			DBTools::packFiles(file_list, destination_path, version, xdb_ud, dont_strip, skip_folders);
 		}
 		else
 		{

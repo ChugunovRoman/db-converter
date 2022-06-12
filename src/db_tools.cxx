@@ -21,6 +21,12 @@ void DBTools::pack(const std::string& source_path, const std::string& destinatio
 	packer.process(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders);
 }
 
+void DBTools::packFiles(const std::vector<std::string>& files, const std::string& destination_path, const xray_re::DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders)
+{
+	Packer packer;
+	packer.processFiles(files, destination_path, version, xdb_ud, dont_strip, skip_folders);
+}
+
 
 bool DBTools::is_xrp(const std::string& extension)
 {
