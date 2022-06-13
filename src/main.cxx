@@ -1,7 +1,9 @@
 #include "db_tools.hxx"
 #include "xray_re/xr_file_system.hxx"
 
+#include <boost/xpressive/xpressive.hpp>
 #include <boost/program_options.hpp>
+#include <boost/regex.hpp>
 #include <spdlog/spdlog.h>
 
 using namespace xray_re;
@@ -54,7 +56,8 @@ int main(int argc, char *argv[])
 		    ("2945", "assume 2945/2939 archive format (unpack only)")
 		    ("2947ru", "assume release version format")
 		    ("2947ww", "assume worldwide release version and 3120 format")
-		    ("xdb", "assume .xdb or .db archive format");
+		    ("xdb", "assume .xdb or .db archive format")
+		    ("skip", value<std::string>()->value_name("<REGEX>"), "Skip files by regex");
 
 		options_description unpack_options("Unpack options");
 		unpack_options.add_options()
@@ -63,7 +66,7 @@ int main(int argc, char *argv[])
 
 		options_description pack_options("Pack options");
 		pack_options.add_options()
-		    ("pack_files", value<std::vector<std::string>>(&file_list)->multitoken(), "list of files which will be packed into archive")
+		    ("pack_files", value<std::vector<std::string>>(&file_list)->multitoken()->value_name("<LIST>"), "list of files which will be packed into archive")
 		    ("pack", value<std::string>()->value_name("<DIR>"), "pack directory content into game archive")
 		    ("xdb_ud", value<std::string>()->value_name("<FILE>"), "attach user data file")
 		    ("dont_strip", "if set then root path for each file will not stripped")
@@ -120,6 +123,13 @@ int main(int argc, char *argv[])
 		if(vm.count("skip_folders"))
 		{
 			skip_folders = true;
+		}
+
+		boost::regex expression = boost::regex("");
+
+		if(vm.count("skip"))
+		{
+			expression = boost::regex(vm["skip"].as<std::string>());
 		}
 
 		auto tools_type = ToolsType::AUTO;
@@ -245,7 +255,7 @@ int main(int argc, char *argv[])
 				xdb_ud = vm["xdb_ud"].as<std::string>();
 			}
 
-			DBTools::pack(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders);
+			DBTools::pack(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders, expression);
 		}
 		else if(tools_type == ToolsType::FILES)
 		{

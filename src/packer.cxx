@@ -31,7 +31,7 @@ template <typename... Args>
 }
 
 
-void Packer::process(const std::string& source_path, const std::string& destination_path, const DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders)
+void Packer::process(const std::string& source_path, const std::string& destination_path, const DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders, boost::regex& expression)
 {
 	if(source_path.empty())
 	{
@@ -99,7 +99,7 @@ void Packer::process(const std::string& source_path, const std::string& destinat
 	m_archive->open_chunk(DB_CHUNK_DATA);
 	m_root = source_path;
 	fs.append_path_separator(m_root);
-	process_folder(m_root, dont_strip, skip_folders);
+	process_folder(m_root, dont_strip, skip_folders, expression);
 	m_archive->close_chunk();
 
 	pack(version);
@@ -218,8 +218,9 @@ void Packer::pack(const DBVersion& version)
 	fs.w_close(m_archive);
 }
 
-void Packer::process_folder(const std::string& path, const bool& dont_strip, const bool& skip_folders)
+void Packer::process_folder(const std::string& path, const bool& dont_strip, const bool& skip_folders, const boost::regex& expression)
 {
+	boost::smatch what;
 	std::vector<std::filesystem::directory_entry> files, folders;
 	auto iter = make_directory_range(!skip_folders, path);
 
@@ -229,7 +230,7 @@ void Packer::process_folder(const std::string& path, const bool& dont_strip, con
 		{
 			folders.emplace_back(entry);
 		}
-		else if(entry.is_regular_file())
+		else if(entry.is_regular_file() && !boost::regex_match(std::filesystem::path(entry).string(), what, expression))
 		{
 			files.emplace_back(entry);
 		}
