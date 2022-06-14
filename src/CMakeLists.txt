@@ -1,4 +1,4 @@
-find_package(Boost COMPONENTS program_options REQUIRED )
+find_package(Boost COMPONENTS program_options REQUIRED)
 include_directories(${Boost_INCLUDE_DIR})
 
 find_package(spdlog REQUIRED)
@@ -35,7 +35,8 @@ add_library(db_tools SHARED
 	"xray_re/xr_writer.cxx"
 	"xray_re/xr_writer.hxx"
 	"xray_re/xr_packet.cxx"
-    "xray_re/xr_packet.hxx")
+	"xray_re/xr_packet.hxx"
+)
 
 target_link_libraries(db_tools
 	PUBLIC
