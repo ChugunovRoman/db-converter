@@ -53,6 +53,7 @@ void CompareChecksums(const std::string& file_path, xray_re::DBVersion version, 
 	bool dont_strip = false;
 	bool skip_folders = false;
 	boost::regex expression = boost::regex(".*\\.git.*");
+	const size_t max_size = 0;
 
 	ASSERT_TRUE(fs::exists(file_path));
 
@@ -75,7 +76,7 @@ void CompareChecksums(const std::string& file_path, xray_re::DBVersion version, 
 		EXPECT_EQ(GetNumberOfFilesAndDirectories(unpack_path), number_of_files);
 	}
 	{
-		DBTools::pack(unpack_path, packed_file_path, version, userdata_file_path, dont_strip, skip_folders, expression);
+		DBTools::pack(unpack_path, packed_file_path, version, userdata_file_path, dont_strip, skip_folders, expression, max_size);
 
 		auto checksum = GetChecksum(packed_file_path);
 		ASSERT_TRUE(checksum.has_value());

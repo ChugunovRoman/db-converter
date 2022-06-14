@@ -11,10 +11,11 @@ using namespace boost::program_options;
 
 enum class ToolsType
 {
-	AUTO   = 0x00,
-	UNPACK = 0x01,
-	PACK   = 0x02,
-	FILES  = 0x03
+	AUTO   		= 0x00,
+	UNPACK 		= 0x01,
+	PACK   		= 0x02,
+	FILES  		= 0x03,
+	SPLITTED  = 0x04
 };
 
 bool IsConflictingOptionsExist(const variables_map& vm, const std::vector<std::string>& options)
@@ -70,6 +71,7 @@ int main(int argc, char *argv[])
 		    ("pack", value<std::string>()->value_name("<DIR>"), "pack directory content into game archive")
 		    ("xdb_ud", value<std::string>()->value_name("<FILE>"), "attach user data file")
 		    ("dont_strip", "if set then root path for each file will not stripped")
+		    ("max_size", value<size_t>()->value_name("<SIZE>"), "create a few db archives splitted by size, sets in bytes")
 		    ("skip_folders", "pack only files in a source folder");
 
 		options_description all_options;
@@ -147,6 +149,14 @@ int main(int argc, char *argv[])
 		if(vm.count("pack_files"))
 		{
 			tools_type = ToolsType::FILES;
+		}
+
+		size_t db_max_size = 0;
+
+		if(vm.count("max_size"))
+		{
+			tools_type = ToolsType::SPLITTED;
+			db_max_size = vm["max_size"].as<size_t>();
 		}
 
 		bool is_read_only = false;
@@ -255,7 +265,39 @@ int main(int argc, char *argv[])
 				xdb_ud = vm["xdb_ud"].as<std::string>();
 			}
 
-			DBTools::pack(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders, expression);
+			DBTools::pack(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders, expression, db_max_size);
+		}
+		else if(tools_type == ToolsType::SPLITTED)
+		{
+			auto source_path = vm["pack"].as<std::string>();
+			auto destination_path = vm.count("out") ? vm["out"].as<std::string>() : "";
+			auto path_splitted = xr_file_system::split_path(destination_path);
+			auto extension = path_splitted.extension;
+
+			if(version == DBVersion::DB_VERSION_AUTO)
+			{
+				if(!DBTools::is_known(extension))
+				{
+					spdlog::error("Unknown output file extension");
+					return 1;
+				}
+
+				version = extension_to_db_version(extension);
+			}
+
+			std::string filter;
+			if(vm.count("flt"))
+			{
+				filter = vm["flt"].as<std::string>();
+			}
+
+			std::string xdb_ud;
+			if(vm.count("xdb_ud"))
+			{
+				xdb_ud = vm["xdb_ud"].as<std::string>();
+			}
+
+			DBTools::packSplitted(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders, expression, db_max_size);
 		}
 		else if(tools_type == ToolsType::FILES)
 		{

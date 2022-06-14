@@ -20,6 +20,7 @@ extern bool m_debug;
 
 Packer::~Packer()
 {
+	m_files.clear();
 	delete_elements(m_files);
 }
 
@@ -31,7 +32,16 @@ template <typename... Args>
 }
 
 
-void Packer::process(const std::string& source_path, const std::string& destination_path, const DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders, boost::regex& expression)
+void Packer::process(
+	const std::string& source_path,
+	std::string& destination_path,
+	const DBVersion& version,
+	const std::string& xdb_ud,
+	const bool& dont_strip,
+	const bool& skip_folders,
+	boost::regex& expression,
+	const size_t& max_size
+)
 {
 	if(source_path.empty())
 	{
@@ -72,9 +82,24 @@ void Packer::process(const std::string& source_path, const std::string& destinat
 		return;
 	}
 
+	init_archive(version, xdb_ud, destination_path);
+
 	fs.append_path_separator(m_root);
 
+	m_archive->open_chunk(DB_CHUNK_DATA);
+	m_root = source_path;
+	fs.append_path_separator(m_root);
+	process_folder(m_root, dont_strip, skip_folders, expression, max_size);
+	m_archive->close_chunk();
+
+	pack(version);
+}
+
+void Packer::init_archive(const xray_re::DBVersion& version, const std::string& xdb_ud, std::string& destination_path)
+{
+	xr_file_system& fs = xr_file_system::instance();
 	m_archive = fs.w_open(destination_path);
+
 	if(!m_archive)
 	{
 		spdlog::error("Failed to load {}", destination_path);
@@ -95,14 +120,6 @@ void Packer::process(const std::string& source_path, const std::string& destinat
 			spdlog::error("Failed to load {}", xdb_ud);
 		}
 	}
-
-	m_archive->open_chunk(DB_CHUNK_DATA);
-	m_root = source_path;
-	fs.append_path_separator(m_root);
-	process_folder(m_root, dont_strip, skip_folders, expression);
-	m_archive->close_chunk();
-
-	pack(version);
 }
 
 void Packer::processFiles(const std::vector<std::string>& files, const std::string& destination_path, const DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders)
@@ -218,22 +235,26 @@ void Packer::pack(const DBVersion& version)
 	fs.w_close(m_archive);
 }
 
-void Packer::process_folder(const std::string& path, const bool& dont_strip, const bool& skip_folders, const boost::regex& expression)
+void Packer::process_folder(const std::string& path, const bool& dont_strip, const bool& skip_folders, const boost::regex& expression, const size_t& max_size)
 {
 	boost::smatch what;
 	std::vector<std::filesystem::directory_entry> files, folders;
-	auto iter = make_directory_range(!skip_folders, path);
 
-	for(auto& entry : iter)
+	for(auto& entry : make_directory_range(!skip_folders, path))
 	{
 		if(entry.is_directory() && !skip_folders)
 		{
 			folders.emplace_back(entry);
+			continue;
 		}
-		else if(entry.is_regular_file() && !boost::regex_match(std::filesystem::path(entry).string(), what, expression))
-		{
-			files.emplace_back(entry);
-		}
+
+		if(!entry.is_regular_file())
+			continue;
+
+		if(boost::regex_match(std::filesystem::path(entry).string(), what, expression))
+			continue;
+
+		files.emplace_back(entry);
 	}
 
 	auto comparator = [](auto lhs, auto rhs)

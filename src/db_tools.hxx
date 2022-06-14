@@ -12,7 +12,8 @@ public:
 	virtual ~DBTools() = default;
 
 	static void unpack(const std::string& source_path, const std::string& destination_path, const xray_re::DBVersion& version, const std::string& filter);
-	static void pack(const std::string& source_path, const std::string& destination_path, const xray_re::DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders, boost::regex& expression);
+	static void pack(const std::string& source_path, std::string& destination_path, const xray_re::DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders, boost::regex& expression, const size_t& max_size);
+	static void packSplitted(const std::string& source_path, std::string& destination_path, const xray_re::DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders, boost::regex& expression, const size_t& max_size);
 	static void packFiles(const std::vector<std::string>& files, const std::string& destination_path, const xray_re::DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders);
 
 	static bool is_db(const std::string& extension);

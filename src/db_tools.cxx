@@ -1,8 +1,14 @@
+#include "xray_re/xr_file_system.hxx"
 #include "db_tools.hxx"
 #include "unpacker.hxx"
 #include "packer.hxx"
 
+#include <boost/range/adaptors.hpp>
+#include <boost/range/adaptor/type_erased.hpp>
+#include <boost/range/iterator_range.hpp>
 #include <spdlog/spdlog.h>
+
+#include <filesystem>
 
 using namespace xray_re;
 
@@ -15,10 +21,82 @@ void DBTools::unpack(const std::string& source_path, const std::string& destinat
 }
 
 
-void DBTools::pack(const std::string& source_path, const std::string& destination_path, const xray_re::DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders, boost::regex& expression)
+void DBTools::pack(
+	const std::string& source_path,
+	std::string& destination_path,
+	const xray_re::DBVersion& version,
+	const std::string& xdb_ud,
+	const bool& dont_strip,
+	const bool& skip_folders,
+	boost::regex& expression,
+	const size_t& max_size
+)
 {
 	Packer packer;
-	packer.process(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders, expression);
+	packer.process(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders, expression, max_size);
+}
+
+void DBTools::packSplitted(
+	const std::string& source_path,
+	std::string& destination_path,
+	const xray_re::DBVersion& version,
+	const std::string& xdb_ud,
+	const bool& dont_strip,
+	const bool& skip_folders,
+	boost::regex& expression,
+	const size_t& max_size
+)
+{
+	if(!xr_file_system::folder_exist(source_path))
+	{
+		spdlog::error("Failed to find folder {}", source_path);
+		return;
+	}
+
+	int i = 1;
+	size_t current_max_size = 0;
+	boost::smatch what;
+	std::vector<std::string> files;
+
+	for (auto& entry : std::filesystem::recursive_directory_iterator(source_path))
+	{
+		if(!entry.is_regular_file())
+			continue;
+
+		if(boost::regex_match(std::filesystem::path(entry).string(), what, expression))
+			continue;
+
+		if (current_max_size >= max_size)
+		{
+			char buf [256];
+			sprintf(buf, "_%05d.db", i);
+			auto temp_path = destination_path;
+			temp_path.replace(temp_path.length() - 3, 4, buf);
+
+			Packer packer;
+			packer.processFiles(files, temp_path, version, xdb_ud, dont_strip, skip_folders);
+
+			files.clear();
+			current_max_size = 0;
+			i += 1;
+		}
+
+		current_max_size += entry.file_size();
+		files.push_back(entry.path().string());
+	}
+
+	if (current_max_size >= 0)
+	{
+		char buf [256];
+		sprintf(buf, "_%05d.db", i);
+		destination_path.replace(destination_path.length() - 3, 4, buf);
+
+		Packer packer;
+		packer.processFiles(files, destination_path, version, xdb_ud, dont_strip, skip_folders);
+
+		files.clear();
+		current_max_size = 0;
+	}
 }
 
 void DBTools::packFiles(const std::vector<std::string>& files, const std::string& destination_path, const xray_re::DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders)
