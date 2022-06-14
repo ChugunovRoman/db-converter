@@ -1,0 +1,29 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Debug",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/src/db_converter",
+      "args": [
+        "--pack",
+        "./",
+        "--out",
+        "./build/test.db",
+        "--xdb",
+        "--dont_strip",
+        "--max_size",
+        "10485760"
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Compile",
+      "externalConsole": false,
+      "MIMode": "gdb"
+    },
+  ]
+}
