@@ -29,11 +29,24 @@ void DBTools::pack(
 	const bool& dont_strip,
 	const bool& skip_folders,
 	boost::regex& expression,
-	const size_t& max_size
+	const size_t& max_size,
+	const bool& save_list
 )
 {
-	Packer packer;
-	packer.process(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders, expression, max_size);
+	auto options = new PackerOptions;
+
+	options->m_source_path = source_path;
+	options->m_destination_path = destination_path;
+	options->m_version = version;
+	options->m_xdb_ud = xdb_ud;
+	options->m_dont_strip = dont_strip;
+	options->m_skip_folders = skip_folders;
+	options->m_expression = expression;
+	options->m_max_size = max_size;
+	options->m_save_list = save_list;
+
+	Packer packer(options);
+	packer.process();
 }
 
 void DBTools::packSplitted(
@@ -44,7 +57,8 @@ void DBTools::packSplitted(
 	const bool& dont_strip,
 	const bool& skip_folders,
 	boost::regex& expression,
-	const size_t& max_size
+	const size_t& max_size,
+	const bool& save_list
 )
 {
 	if(!xr_file_system::folder_exist(source_path))
@@ -73,8 +87,18 @@ void DBTools::packSplitted(
 			auto temp_path = destination_path;
 			temp_path.replace(temp_path.length() - 3, 4, buf);
 
-			Packer packer;
-			packer.processFiles(files, temp_path, version, xdb_ud, dont_strip, skip_folders);
+			auto options = new PackerOptions;
+
+			options->m_input_files = files;
+			options->m_destination_path = destination_path;
+			options->m_version = version;
+			options->m_xdb_ud = xdb_ud;
+			options->m_dont_strip = dont_strip;
+			options->m_skip_folders = skip_folders;
+			options->m_save_list = save_list;
+
+			Packer packer(options);
+			packer.processFiles();
 
 			files.clear();
 			current_max_size = 0;
@@ -91,18 +115,44 @@ void DBTools::packSplitted(
 		sprintf(buf, "_%05d.db", i);
 		destination_path.replace(destination_path.length() - 3, 4, buf);
 
-		Packer packer;
-		packer.processFiles(files, destination_path, version, xdb_ud, dont_strip, skip_folders);
+		auto options = new PackerOptions;
+
+		options->m_input_files = files;
+		options->m_destination_path = destination_path;
+		options->m_version = version;
+		options->m_xdb_ud = xdb_ud;
+		options->m_dont_strip = dont_strip;
+		options->m_skip_folders = skip_folders;
+		options->m_save_list = save_list;
+
+		Packer packer(options);
+		packer.processFiles();
 
 		files.clear();
 		current_max_size = 0;
 	}
 }
 
-void DBTools::packFiles(const std::vector<std::string>& files, const std::string& destination_path, const xray_re::DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders)
+void DBTools::packFiles(
+	const std::vector<std::string>& files,
+	const std::string& destination_path,
+	const xray_re::DBVersion& version,
+	const std::string& xdb_ud,
+	const bool& dont_strip,
+	const bool& skip_folders
+)
 {
-	Packer packer;
-	packer.processFiles(files, destination_path, version, xdb_ud, dont_strip, skip_folders);
+	auto options = new PackerOptions;
+
+	options->m_input_files = files;
+	options->m_destination_path = destination_path;
+	options->m_version = version;
+	options->m_xdb_ud = xdb_ud;
+	options->m_dont_strip = dont_strip;
+	options->m_skip_folders = skip_folders;
+
+	Packer packer(options);
+	packer.processFiles();
 }
 
 

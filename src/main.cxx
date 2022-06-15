@@ -72,6 +72,7 @@ int main(int argc, char *argv[])
 		    ("xdb_ud", value<std::string>()->value_name("<FILE>"), "attach user data file")
 		    ("dont_strip", "if set then root path for each file will not stripped")
 		    ("max_size", value<size_t>()->value_name("<SIZE>"), "create a few db archives splitted by size, sets in bytes")
+		    ("save_list", "create json files for each db archive which contain json array with files")
 		    ("skip_folders", "pack only files in a source folder");
 
 		options_description all_options;
@@ -125,6 +126,13 @@ int main(int argc, char *argv[])
 		if(vm.count("skip_folders"))
 		{
 			skip_folders = true;
+		}
+
+		auto save_list = false;
+
+		if(vm.count("save_list"))
+		{
+			save_list = true;
 		}
 
 		boost::regex expression = boost::regex("");
@@ -265,7 +273,7 @@ int main(int argc, char *argv[])
 				xdb_ud = vm["xdb_ud"].as<std::string>();
 			}
 
-			DBTools::pack(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders, expression, db_max_size);
+			DBTools::pack(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders, expression, db_max_size, save_list);
 		}
 		else if(tools_type == ToolsType::SPLITTED)
 		{
@@ -297,7 +305,7 @@ int main(int argc, char *argv[])
 				xdb_ud = vm["xdb_ud"].as<std::string>();
 			}
 
-			DBTools::packSplitted(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders, expression, db_max_size);
+			DBTools::packSplitted(source_path, destination_path, version, xdb_ud, dont_strip, skip_folders, expression, db_max_size, save_list);
 		}
 		else if(tools_type == ToolsType::FILES)
 		{

@@ -7,9 +7,12 @@
 #include "xray_re/xr_scrambler.hxx"
 #include "crc32/crc32.hxx"
 
+#include <boost/filesystem/operations.hpp>
+#include <boost/filesystem/fstream.hpp>
 #include <boost/range/adaptors.hpp>
 #include <boost/range/adaptor/type_erased.hpp>
 #include <boost/range/iterator_range.hpp>
+#include <boost/algorithm/string/join.hpp>
 #include <spdlog/spdlog.h>
 
 #include <filesystem>
@@ -32,37 +35,28 @@ template <typename... Args>
 }
 
 
-void Packer::process(
-	const std::string& source_path,
-	std::string& destination_path,
-	const DBVersion& version,
-	const std::string& xdb_ud,
-	const bool& dont_strip,
-	const bool& skip_folders,
-	boost::regex& expression,
-	const size_t& max_size
-)
+void Packer::process()
 {
-	if(source_path.empty())
+	if(m_options->m_source_path.empty())
 	{
 		spdlog::error("Missing source directory path");
 		return;
 	}
 
-	if(!xr_file_system::folder_exist(source_path))
+	if(!xr_file_system::folder_exist(m_options->m_source_path))
 	{
-		spdlog::error("Failed to find folder {}", source_path);
+		spdlog::error("Failed to find folder {}", m_options->m_source_path);
 		return;
 	}
 
-	if(destination_path.empty())
+	if(m_options->m_destination_path.empty())
 	{
 		spdlog::error("Missing destination file path");
 		return;
 	}
 
 	xr_file_system& fs = xr_file_system::instance();
-	auto path_splitted = fs.split_path(destination_path);
+	auto path_splitted = fs.split_path(m_options->m_destination_path);
 
 	if(!xr_file_system::folder_exist(path_splitted.folder))
 	{
@@ -70,45 +64,45 @@ void Packer::process(
 		fs.create_path(path_splitted.folder);
 	}
 
-	if(version == DBVersion::DB_VERSION_AUTO)
+	if(m_options->m_version == DBVersion::DB_VERSION_AUTO)
 	{
 		spdlog::error("Unspecified DB format");
 		return;
 	}
 
-	if(version == DBVersion::DB_VERSION_1114 || version == DBVersion::DB_VERSION_2215 || version == DBVersion::DB_VERSION_2945)
+	if(m_options->m_version == DBVersion::DB_VERSION_1114 || m_options->m_version == DBVersion::DB_VERSION_2215 || m_options->m_version == DBVersion::DB_VERSION_2945)
 	{
 		spdlog::error("Unsupported DB format");
 		return;
 	}
 
-	init_archive(version, xdb_ud, destination_path);
+	init_archive();
 
 	fs.append_path_separator(m_root);
 
 	m_archive->open_chunk(DB_CHUNK_DATA);
-	m_root = source_path;
+	m_root = m_options->m_source_path;
 	fs.append_path_separator(m_root);
-	process_folder(m_root, dont_strip, skip_folders, expression, max_size);
+	process_folder(m_root, m_options->m_dont_strip, m_options->m_skip_folders, m_options->m_expression, m_options->m_max_size);
 	m_archive->close_chunk();
 
-	pack(version);
+	pack();
 }
 
-void Packer::init_archive(const xray_re::DBVersion& version, const std::string& xdb_ud, std::string& destination_path)
+void Packer::init_archive()
 {
 	xr_file_system& fs = xr_file_system::instance();
-	m_archive = fs.w_open(destination_path);
+	m_archive = fs.w_open(m_options->m_destination_path);
 
 	if(!m_archive)
 	{
-		spdlog::error("Failed to load {}", destination_path);
+		spdlog::error("Failed to load {}", m_options->m_destination_path);
 		return;
 	}
 
-	if(version == DBVersion::DB_VERSION_XDB && !xdb_ud.empty())
+	if(m_options->m_version == DBVersion::DB_VERSION_XDB && !m_options->m_xdb_ud.empty())
 	{
-		if(auto reader = fs.r_open(xdb_ud))
+		if(auto reader = fs.r_open(m_options->m_xdb_ud))
 		{
 			m_archive->open_chunk(DB_CHUNK_USERDATA);
 			m_archive->w_raw(reader->data(), reader->size());
@@ -117,21 +111,21 @@ void Packer::init_archive(const xray_re::DBVersion& version, const std::string& 
 		}
 		else
 		{
-			spdlog::error("Failed to load {}", xdb_ud);
+			spdlog::error("Failed to load {}", m_options->m_xdb_ud);
 		}
 	}
 }
 
-void Packer::processFiles(const std::vector<std::string>& files, const std::string& destination_path, const DBVersion& version, const std::string& xdb_ud, const bool& dont_strip, const bool& skip_folders)
+void Packer::processFiles()
 {
-	if(destination_path.empty())
+	if(m_options->m_destination_path.empty())
 	{
 		spdlog::error("Missing destination file path");
 		return;
 	}
 
 	xr_file_system& fs = xr_file_system::instance();
-	auto path_splitted = fs.split_path(destination_path);
+	auto path_splitted = fs.split_path(m_options->m_destination_path);
 
 	if(!xr_file_system::folder_exist(path_splitted.folder))
 	{
@@ -139,13 +133,13 @@ void Packer::processFiles(const std::vector<std::string>& files, const std::stri
 		fs.create_path(path_splitted.folder);
 	}
 
-	if(version == DBVersion::DB_VERSION_AUTO)
+	if(m_options->m_version == DBVersion::DB_VERSION_AUTO)
 	{
 		spdlog::error("Unspecified DB format");
 		return;
 	}
 
-	if(version == DBVersion::DB_VERSION_1114 || version == DBVersion::DB_VERSION_2215 || version == DBVersion::DB_VERSION_2945)
+	if(m_options->m_version == DBVersion::DB_VERSION_1114 || m_options->m_version == DBVersion::DB_VERSION_2215 || m_options->m_version == DBVersion::DB_VERSION_2945)
 	{
 		spdlog::error("Unsupported DB format");
 		return;
@@ -153,16 +147,16 @@ void Packer::processFiles(const std::vector<std::string>& files, const std::stri
 
 	fs.append_path_separator(m_root);
 
-	m_archive = fs.w_open(destination_path);
+	m_archive = fs.w_open(m_options->m_destination_path);
 	if(!m_archive)
 	{
-		spdlog::error("Failed to load {}", destination_path);
+		spdlog::error("Failed to load {}", m_options->m_destination_path);
 		return;
 	}
 
-	if(version == DBVersion::DB_VERSION_XDB && !xdb_ud.empty())
+	if(m_options->m_version == DBVersion::DB_VERSION_XDB && !m_options->m_xdb_ud.empty())
 	{
-		if(auto reader = fs.r_open(xdb_ud))
+		if(auto reader = fs.r_open(m_options->m_xdb_ud))
 		{
 			m_archive->open_chunk(DB_CHUNK_USERDATA);
 			m_archive->w_raw(reader->data(), reader->size());
@@ -171,13 +165,13 @@ void Packer::processFiles(const std::vector<std::string>& files, const std::stri
 		}
 		else
 		{
-			spdlog::error("Failed to load {}", xdb_ud);
+			spdlog::error("Failed to load {}", m_options->m_xdb_ud);
 		}
 	}
 
 	m_archive->open_chunk(DB_CHUNK_DATA);
 
-	for(const auto& file_path : files)
+	for(const auto& file_path : m_options->m_input_files)
 	{
 		if(!xr_file_system::file_exist(file_path))
 		{
@@ -185,19 +179,20 @@ void Packer::processFiles(const std::vector<std::string>& files, const std::stri
 			continue;
 		}
 
-		process_file(file_path, dont_strip);
+		process_file(file_path, m_options->m_dont_strip);
 	}
 
 	m_archive->close_chunk();
 
-	pack(version);
+	pack();
 }
 
-void Packer::pack(const DBVersion& version)
+void Packer::pack()
 {
 	spdlog::info("files: ");
 	xr_file_system& fs = xr_file_system::instance();
 	auto w = new xr_memory_writer;
+	std::vector<std::string> json_files;
 
 	for(const auto& file : m_files)
 	{
@@ -209,6 +204,9 @@ void Packer::pack(const DBVersion& version)
 		w->w_raw(file->path.data(), file->path.size());
 		spdlog::info("  {}", file->path);
 		w->w_size_u32(file->offset);
+
+		if (m_options->m_save_list)
+			json_files.push_back(escape_json(file->path));
 	}
 
 	uint8_t *data = nullptr;
@@ -216,12 +214,12 @@ void Packer::pack(const DBVersion& version)
 	xr_lzhuf::compress(data, size, w->data(), w->tell());
 	delete w;
 
-	if(version == DBVersion::DB_VERSION_2947RU)
+	if(m_options->m_version == DBVersion::DB_VERSION_2947RU)
 	{
 		xr_scrambler scrambler(xr_scrambler::CC_RU);
 		scrambler.encrypt(data, data, size);
 	}
-	else if(version == DBVersion::DB_VERSION_2947WW)
+	else if(m_options->m_version == DBVersion::DB_VERSION_2947WW)
 	{
 		xr_scrambler scrambler(xr_scrambler::CC_WW);
 		scrambler.encrypt(data, data, size);
@@ -230,6 +228,19 @@ void Packer::pack(const DBVersion& version)
 	m_archive->open_chunk(DB_CHUNK_HEADER | CHUNK_COMPRESSED);
 	m_archive->w_raw(data, size);
 	m_archive->close_chunk();
+
+	if (m_options->m_save_list)
+	{
+		std::string json_file_name = m_options->m_destination_path;
+
+		json_file_name.insert(json_file_name.length(), ".json");
+
+		boost::filesystem::ofstream json_file(json_file_name);
+		json_file << "[\"";
+		json_file << boost::algorithm::join(json_files, "\",\"");
+		json_file << "\"]";
+		json_file.close();
+	}
 
 	delete data;
 	fs.w_close(m_archive);
@@ -362,4 +373,20 @@ void Packer::process_file(const std::string& path, const bool& dont_strip)
 			m_files.push_back(file);
 		}
 	}
+}
+
+std::string Packer::escape_json(const std::string &s)
+{
+	std::ostringstream o;
+	for (auto c = s.cbegin(); c != s.cend(); c++) {
+		if (*c == '"') {
+			o << "\\\"";
+		} else if(*c == '\\') {
+			o << "\\\\";
+		} else {
+			o << *c;
+		}
+	}
+
+	return o.str();
 }
