@@ -17,7 +17,8 @@
         "--xdb",
         "--dont_strip",
         "--max_size",
-        "10485760"
+        "10485760",
+        "--save_list"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",

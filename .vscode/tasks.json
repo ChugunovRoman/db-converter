@@ -9,7 +9,7 @@
       "options": {
         "cwd": "${workspaceFolder}/build"
       },
-      "command": "rm -rf ./*.db"
+      "command": "rm -rf ./*.db*"
     },
     {
       "label": "Configure",
