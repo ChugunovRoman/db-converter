@@ -233,12 +233,10 @@ void Packer::pack()
 	{
 		std::string json_file_name = m_options->m_destination_path;
 
-		json_file_name.insert(json_file_name.length(), ".json");
+		json_file_name.insert(json_file_name.length(), ".list");
 
 		boost::filesystem::ofstream json_file(json_file_name);
-		json_file << "[\"";
-		json_file << boost::algorithm::join(json_files, "\",\"");
-		json_file << "\"]";
+		json_file << boost::algorithm::join(json_files, "\n");
 		json_file.close();
 	}
 
@@ -379,10 +377,8 @@ std::string Packer::escape_json(const std::string &s)
 {
 	std::ostringstream o;
 	for (auto c = s.cbegin(); c != s.cend(); c++) {
-		if (*c == '"') {
-			o << "\\\"";
-		} else if(*c == '\\') {
-			o << "\\\\";
+		if (*c == '\\') {
+			o << "/";
 		} else {
 			o << *c;
 		}
