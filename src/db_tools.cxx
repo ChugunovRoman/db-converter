@@ -90,7 +90,7 @@ void DBTools::packSplitted(
 			auto options = new PackerOptions;
 
 			options->m_input_files = files;
-			options->m_destination_path = destination_path;
+			options->m_destination_path = temp_path;
 			options->m_version = version;
 			options->m_xdb_ud = xdb_ud;
 			options->m_dont_strip = dont_strip;
